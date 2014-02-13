@@ -16,5 +16,5 @@ tmp
 .yardoc
 _yardoc
 doc/
-data/*.csv
+data/schoenbergAll.csv
 db/*.sqlite3
