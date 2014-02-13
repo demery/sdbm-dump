@@ -1,46 +1,39 @@
 #!/usr/bin/env ruby
 
-require 'roo'
+require 'csv'
 require 'sqlite3'
 require 'active_record'
 
 # require all the ruby files in lib
 Dir[File.expand_path('../../lib',__FILE__) + '/*.rb'].each { |f| require f }
 
-csv = Roo::CSV.new File.expand_path('../../data/schoenbergAll.csv', __FILE__)
-# csv = Roo::CSV.new File.expand_path('../../data/schoenbergSmall.csv', __FILE__)
+# csv    = Roo::CSV.new File.expand_path('../../data/schoenbergAll.csv', __FILE__)
+# csv    = Roo::CSV.new File.expand_path('../../data/schoenbergSmall.csv', __FILE__)
+csv_file = ARGV.shift
+db_file  = File.expand_path('../../db/sdbm_dump.sqlite3', __FILE__)
 
-puts "#{Time.now}: Now ready to get the info"
-last_row = csv.last_row
-width = last_row.to_s.size
-puts "#{Time.now}: last_row: #{last_row}"
-last_col = csv.last_column
-puts "#{Time.now}: last_col: #{last_col}"
+File.delete db_file if File.exists?(db_file)
 
-# get the attributes
-ATTR_LIST = []
-(1..last_col).each do |i|
-  head = csv.cell(1,i).downcase
-  ATTR_LIST << head.to_sym unless head == 'x'
-end
+class Observation < ActiveRecord::Base; end
 
 ActiveRecord::Base.establish_connection(
   :adapter => 'sqlite3',
-  :database => File.expand_path('../../db/test.sqlite3', __FILE__)
+  :database => db_file
 )
 
-# fill the database
-Observation.destroy_all
+CreateObservations.new.change
 
-(2..last_row).each do |row|
-  attrs = {}
-  ATTR_LIST.each_with_index do |attr, index|
-    attrs[attr] = csv.cell row, index+1
-  end
-  # remove empty strings
-  attrs.reject! { |k,v| v == '' }
+width = 7
+count = 0
+last_row = %x( wc -l #{csv_file} ).strip.split[0].to_i - 1
+CSV.new(File.open(csv_file, 'r'), headers: true).lazy.each do |row|
+  attrs = row.headers.inject({}) { |hash,h| 
+    hash[h.downcase.to_sym] = row[h]; hash
+  }
   Observation.new(attrs).save!
-  if row % 1000 == 0 || row == last_row
-    puts sprintf("%#{width}d of %#{width}d added -- %s",row,last_row, Time.now.to_s) 
+  if count % 1000 == 0 || row == last_row
+    puts sprintf("%7d of c. %7d added -- %s",count,last_row, Time.now.to_s)
   end
-end
+  count += 1
+end 
+puts sprintf("%7d of c. %7d added -- %s",count,last_row, Time.now.to_s)
