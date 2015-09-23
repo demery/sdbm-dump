@@ -43,7 +43,7 @@ CSV.new(File.open(csv_file, 'r'), headers: true).lazy.each do |row|
     hash[h.downcase.to_sym] = row[h]; hash
   }
   Observation.new(attrs).save!
-  if count % 1000 == 0 || row == last_row
+  if count % 1000 == 0 || count == last_row
     puts sprintf("%7d of c. %d added -- %s",count,last_row,Time.now.to_s)
   end
   count += 1
